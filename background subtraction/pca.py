@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from PIL import Image, ImageDraw
+import cv2 as cv
 
 FOLDER = 'unlabeled_mishmar'
 OUTPUT_FOLDER = 'outs_mishmar'
@@ -23,7 +24,53 @@ P_NP_FILE = 'tmp/P.npy'
 Q_NP_FILE = 'tmp/Q.npy'
 APPLY_TO_RESULT = lambda x: (x + 200) * 255 / 300
 SQUARE_SIZE = (16, 16)
+LPF_FILE = 'lpf.csv'
 
+lpf = None
+
+def init():
+    global lpf
+    lpf = np.genfromtxt(LPF_FILE, delimiter=',')
+    pass
+
+def PIL_to_cv2(img):
+    return cv.cvtColor(np.array(img), cv.COLOR_RGB2BGR)
+
+def cv2_to_PIL(img):
+    return Image.fromarray(cv.cvtColor(img, cv.COLOR_BGR2RGB))
+
+def shrink(img):
+    w, h = img.size
+    new_w = int(w * SIZE_FACTOR)
+    new_h = int(h * SIZE_FACTOR)
+    new_img = img.resize((new_w, new_h))
+    return new_img
+
+def crop(img):
+    w, h = img.size
+    return img.crop((TRIM_LEFT, TRIM_TOP, w - TRIM_RIGHT, h - TRIM_BOTTOM))
+
+def low_pass(img):
+    # old = img.copy()
+    # img.save('test.jpg')
+    img = PIL_to_cv2(img)
+    img = cv.filter2D(img, -1, lpf)
+
+    # old = PIL_to_cv2(old)
+    # diff = img - old
+    # diff = Image.fromarray(diff)
+    # diff.save('diff.jpg')
+
+    img = cv2_to_PIL(img)
+    # img.save('test2.jpg')
+
+    return img
+
+def preprocess(img):
+    img = crop(img)
+    img = low_pass(img)
+    img = shrink(img)
+    return img
 
 def loadX(files, save=True, force=False):
     if not force and os.path.isfile(X_NP_FILE):
@@ -34,16 +81,11 @@ def loadX(files, save=True, force=False):
     for fname in files:
         print(f'{c + 1}. {fname}')
         img = Image.open(f'{FOLDER}/{fname}')
-        w, h = img.size
-        img = img.crop((TRIM_LEFT, TRIM_TOP, w - TRIM_RIGHT, h - TRIM_BOTTOM))
         # img.show()
         # img = img.filter(ImageFilter.GaussianBlur(20))
         # img = img.filter(ImageFilter.MinFilter(5))
         # img.show()
-        w, h = img.size
-        new_w = int(w * SIZE_FACTOR)
-        new_h = int(h * SIZE_FACTOR)
-        new_img = img.resize((new_w, new_h))
+        new_img = preprocess(img)
         arr = np.asarray(new_img).reshape(1, -1)
         X_lst.append(arr)
         img.close()
@@ -122,12 +164,8 @@ def output(P, Q, files):
     for fname in files:
         print(f'{c + 1}. {fname}')
         img = Image.open(f'{FOLDER}/{fname}')
-        w, h = img.size
-        img = img.crop((TRIM_LEFT, TRIM_TOP, w - TRIM_RIGHT, h - TRIM_BOTTOM))
-        w, h = img.size
-        new_w = int(w * SIZE_FACTOR)
-        new_h = int(h * SIZE_FACTOR)
-        new_img = img.resize((new_w, new_h))
+        new_img = preprocess(img)
+        new_w, new_h = new_img.size
         arr = np.asarray(new_img).reshape(-1)
         res_np = get_orthogonal_component(P, Q, arr).reshape((new_h, new_w, 3))
         # print(f'\tMIN: {res_np.min()}, MAX: {res_np.max()}'); mins.append(res_np.min()); maxes.append(res_np.max());
@@ -178,6 +216,7 @@ def clean(force=False):
 
 
 def main():
+    init()
     clean(True)
     all_files = os.listdir(FOLDER)
     for i in range(0, len(all_files), NUM_IMAGES_FOR_SVD):
