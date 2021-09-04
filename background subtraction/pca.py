@@ -7,6 +7,7 @@ FOLDER = 'unlabeled_mishmar'
 OUTPUT_FOLDER = 'outs_mishmar'
 GRAYCSCALE_OUT = 'outs_mishmar_gray'
 THRESHOLD_OUT = 'outs_mishmar_thresh'
+CROPPED_OUT = 'outs_mishmar_cropped'
 IMAGES_EXT = 'JPG'
 TRIM_BOTTOM = 160
 TRIM_LEFT = 0
@@ -25,6 +26,7 @@ Q_NP_FILE = 'tmp/Q.npy'
 APPLY_TO_RESULT = lambda x: (x + 200) * 255 / 300
 SQUARE_SIZE = (16, 16)
 LPF_FILE = 'lpf.csv'
+DO_LOW_PASS = False
 
 lpf = None
 
@@ -51,6 +53,8 @@ def crop(img):
     return img.crop((TRIM_LEFT, TRIM_TOP, w - TRIM_RIGHT, h - TRIM_BOTTOM))
 
 def low_pass(img):
+    if not DO_LOW_PASS:
+        return
     # old = img.copy()
     # img.save('test.jpg')
     img = PIL_to_cv2(img)
@@ -160,6 +164,7 @@ maxes = []
 
 
 def output(P, Q, files):
+    total_insects = 0
     c = 0
     for fname in files:
         print(f'{c + 1}. {fname}')
@@ -177,9 +182,17 @@ def output(P, Q, files):
         square = insect_square(res_np, gray_np)
         sqr_img = new_img.copy()
         if square is not None:
+            print('\tFound insect!')
             d = ImageDraw.Draw(sqr_img)
             d.rectangle(square, outline='red', width=3)
-            print('\tFound insect!')
+
+            orig_sqr = map(lambda x: int(x/SIZE_FACTOR), square)
+            cropped_img = crop(img).crop(orig_sqr)
+            cropped_img.save(f'{CROPPED_OUT}/{fname}')
+            cropped_img.close()
+
+            total_insects += 1
+
         sqr_img.save(f'{THRESHOLD_OUT}/{fname}')
         res_img = Image.fromarray(res_np)
         res_img.save(f'{OUTPUT_FOLDER}/{fname}')
@@ -195,6 +208,7 @@ def output(P, Q, files):
         c += 1
         # if 0 < num_images <= c:
         #     break
+    return total_insects
 
 
 def clean(force=False):
@@ -203,7 +217,7 @@ def clean(force=False):
         if confirm.lower() != 'y':
             print('Canceled!')
             return False
-    for fld in [OUTPUT_FOLDER, GRAYCSCALE_OUT, THRESHOLD_OUT]:
+    for fld in [OUTPUT_FOLDER, GRAYCSCALE_OUT, THRESHOLD_OUT, CROPPED_OUT]:
         for filename in os.listdir(fld):
             file_path = os.path.join(fld, filename)
             try:
@@ -219,6 +233,7 @@ def main():
     init()
     clean(True)
     all_files = os.listdir(FOLDER)
+    total_insects = 0
     for i in range(0, len(all_files), NUM_IMAGES_FOR_SVD):
         files = all_files[i:i+NUM_IMAGES_FOR_SVD]
         print(f'Loading images...')
@@ -232,8 +247,9 @@ def main():
         # clean(True)
         print(f'Processing images...')
         # output(P, Q, FOLDER, NUM_IMAGES_TO_PROCESS)
-        output(P, Q, files)
+        total_insects += output(P, Q, files)
     print(f'Done!')
+    print(f'Found a total of {total_insects} insects.')
 
 
 if __name__ == '__main__':
