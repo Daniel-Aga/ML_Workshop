@@ -2,12 +2,7 @@ import numpy as np
 import os
 import cv2 as cv
 import torch
-from classify import ConvolutionNeuralNetwork, INPUT_SHAPE, OUTPUT_SIZE, IMAGES_EXT, TXT_EXT, DROPOUT, CONV_DEFAULT_CHANNELS, get_classes
-from torch import nn
-from torch.utils.data import Dataset, DataLoader
-from math import ceil
-import matplotlib.pyplot as plt
-import random
+from classify import ConvolutionNeuralNetwork, DROPOUT, CONV_DEFAULT_CHANNELS, get_classes
 from pathlib import Path
 
 INPUT_MODEL = 'model.pt'
