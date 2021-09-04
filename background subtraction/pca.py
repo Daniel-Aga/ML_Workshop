@@ -3,13 +3,13 @@ import os
 from PIL import Image, ImageDraw
 import cv2 as cv
 
-FOLDER = 'unlabeled_mishmar'
-OUTPUT_FOLDER = 'outs_mishmar'
-GRAYCSCALE_OUT = 'outs_mishmar_gray'
-THRESHOLD_OUT = 'outs_mishmar_thresh'
-CROPPED_OUT = 'outs_mishmar_cropped'
+FOLDER = 'unlabeled_hanadiv'
+OUTPUT_FOLDER = 'outs_hanadiv'
+GRAYCSCALE_OUT = 'outs_hanadiv_gray'
+THRESHOLD_OUT = 'outs_hanadiv_thresh'
+CROPPED_OUT = 'outs_hanadiv_cropped'
 IMAGES_EXT = 'JPG'
-TRIM_BOTTOM = 160
+TRIM_BOTTOM = 230
 TRIM_LEFT = 0
 TRIM_RIGHT = 0
 TRIM_TOP = 0
@@ -84,6 +84,7 @@ def loadX(files, save=True, force=False):
     # for fname in os.listdir(fld):
     for fname in files:
         print(f'{c + 1}. {fname}')
+        print(f'{FOLDER}/{fname}')
         img = Image.open(f'{FOLDER}/{fname}')
         # img.show()
         # img = img.filter(ImageFilter.GaussianBlur(20))
@@ -144,7 +145,7 @@ def mat_argmin(arr):
 
 def is_insect_in_square(arr, arr_gray, sqr):
     sub_image = arr_gray[sqr[0]:sqr[0] + SQUARE_SIZE[0], sqr[1]:sqr[1] + SQUARE_SIZE[1]]
-    return (sub_image < 120).sum() >= 3
+    return (sub_image < 130).sum() >= 3
 
 
 def insect_square(arr, arr_gray):
@@ -234,7 +235,7 @@ def main():
     clean(True)
     all_files = os.listdir(FOLDER)
     total_insects = 0
-    for i in range(0, len(all_files), NUM_IMAGES_FOR_SVD):
+    for i in range(0, min(len(all_files), NUM_IMAGES_TO_PROCESS), NUM_IMAGES_FOR_SVD):
         files = all_files[i:i+NUM_IMAGES_FOR_SVD]
         print(f'Loading images...')
         # X = loadX(FOLDER, NUM_IMAGES_TO_PROCESS, save=False)
