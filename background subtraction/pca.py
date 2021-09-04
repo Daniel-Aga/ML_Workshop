@@ -54,7 +54,7 @@ def crop(img):
 
 def low_pass(img):
     if not DO_LOW_PASS:
-        return
+        return img
     # old = img.copy()
     # img.save('test.jpg')
     img = PIL_to_cv2(img)
