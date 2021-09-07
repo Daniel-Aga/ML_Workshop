@@ -6,9 +6,9 @@ from classify import ConvolutionNeuralNetwork, DROPOUT, CONV_DEFAULT_CHANNELS, g
 from pathlib import Path
 
 INPUT_MODEL = 'model.pt'
-IMAGES_FOLDER = 'outs_mishmar_cropped'
-THRESH_FOLDER = 'outs_mishmar_thresh'
-THRESH_INFERRED = 'inferred'
+IMAGES_FOLDER = 'outs_hanadiv_cropped'
+THRESH_FOLDER = 'outs_hanadiv_thresh'
+THRESH_INFERRED = 'inferred_hanadiv'
 
 def infer():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -24,6 +24,7 @@ def infer():
     model = model.to(device)
     model.eval()
     for fname in os.listdir(IMAGES_FOLDER):
+        print(fname)
         img_name = f'{IMAGES_FOLDER}/{fname}'
         img = cv.imread(img_name)
         nparr = img.astype(np.float32)
@@ -38,7 +39,8 @@ def infer():
         chosen = pred.max(axis=1).indices[0].item()
 
         out_name = f'{THRESH_INFERRED}/{classes[chosen].strip()}/{fname}'
-        cv.imwrite(out_name, cv.imread(f'{THRESH_FOLDER}/{fname}'))
+        # cv.imwrite(out_name, cv.imread(f'{THRESH_FOLDER}/{fname}'))
+        cv.imwrite(out_name, cv.imread(f'{IMAGES_FOLDER}/{fname}'))
     print('Done!')
 
 
