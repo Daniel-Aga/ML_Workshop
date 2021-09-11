@@ -2,15 +2,22 @@ import numpy as np
 import os
 import cv2 as cv
 import torch
-from classify import ConvolutionNeuralNetwork, DROPOUT, CONV_DEFAULT_CHANNELS, get_classes
 from pathlib import Path
+from train_cnn import ConvolutionNeuralNetwork, DROPOUT, CONV_DEFAULT_CHANNELS, get_classes
 
-INPUT_MODEL = 'model.pt'
-IMAGES_FOLDER = 'outs_hanadiv_cropped'
-THRESH_FOLDER = 'outs_hanadiv_thresh'
-THRESH_INFERRED = 'inferred_hanadiv'
+### INPUT:
+INPUT_MODEL = 'model.pt'  # The file in which the model is saved.
+IMAGES_FOLDER = 'outs_mishmar_cropped'  # The folder in which the unlabeled cropped images are stored.
+
+
+### OUTPUT:
+THRESH_INFERRED = 'inferred_mishmar'  # The output folder.
 
 def infer():
+    """
+    Uses the model to infer the types of the given insects.
+    :return: None
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(device)
 
@@ -39,7 +46,6 @@ def infer():
         chosen = pred.max(axis=1).indices[0].item()
 
         out_name = f'{THRESH_INFERRED}/{classes[chosen].strip()}/{fname}'
-        # cv.imwrite(out_name, cv.imread(f'{THRESH_FOLDER}/{fname}'))
         cv.imwrite(out_name, cv.imread(f'{IMAGES_FOLDER}/{fname}'))
     print('Done!')
 
