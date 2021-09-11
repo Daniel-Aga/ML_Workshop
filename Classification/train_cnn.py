@@ -8,52 +8,73 @@ from math import ceil
 import matplotlib.pyplot as plt
 import random
 
-TRAIN_FOLDER = 'Labeled/train'
-VALID_FOLDER = 'Labeled/valid'
-DATA_SUBFOLDER = 'transformed'
-TARGET_SUBFOLDER = 'class_txts'
-CLASSES_FILE = 'Labeled/classes.txt'
-OUTPUT_MODEL = 'model.pt'
+### INPUT:
+TRAIN_FOLDER = 'Labeled/train'  # The folder containing the training samples.
+VALID_FOLDER = 'Labeled/valid'  # The folder containing the validation samples.
+DATA_SUBFOLDER = 'transformed'  # The subfolder containing the transformed images (64x64 pixels)
+TARGET_SUBFOLDER = 'class_txts'  # The subfolder containing the targets (class of each image)
+CLASSES_FILE = 'Labeled/classes.txt'  # The file containing the classes names.
+
+### OUTPUT:
+OUTPUT_MODEL = 'model.pt'  # The file to save the output model to.
+
+### CONSTANTS:
 IMAGES_EXT = 'JPG'
 TXT_EXT = 'txt'
 
-INPUT_SHAPE = (3, 64, 64)
-OUTPUT_SIZE = 6
+### GENERAL:
+SHOW_RESULTS_EVERY_EPOCHS = 1  # The number of epochs between each 'print'.
 
+### CNN Metadata:
+INPUT_SHAPE = (3, 64, 64)  # The shape of the CNN input.
+OUTPUT_SIZE = 6  # The shape of the CNN output.
 NUM_TRAIN_SAMPLES = 894
 NUM_TEST_SAMPLES = 191
+
+
+### CNN Training:
+EPOCHS = 100
+BATCH_SIZE = 100
+STD = 0.001  # The STD used for initialization.
+
+
+### CNN Architecture
+NUM_MAX_POOL = 2  # The number of MaxPool layers.
+MAX_POOLING_RATIO = 2  # The ratio of MaxPool layers.
+CONV_DEFAULT_CHANNELS = (64, 32, 16)  # The number of channels in each convolutional layer.
+CONVOLUTION_FILTER_SIZE = (3, 3)  # The size of the convolutional kernels.
+CONVOLUTION_FILTER_STRIDE = 1  # The stride of the convolutional kernels.
+DROPOUT = 0.3  # The probability of dropout.
+
 
 train_samples = None
 train_labels = None
 test_samples = None
 test_labels = None
 
-EPOCHS = 100
-BATCH_SIZE = 100
-SHOW_RESULTS_EVERY_EPOCHS = 1
-
-NUM_MAX_POOL = 2
-MAX_POOLING_RATIO = 2
-CONV_DEFAULT_CHANNELS = (64, 32, 16)
-CONVOLUTION_FILTER_SIZE = (3, 3)
-CONVOLUTION_FILTER_STRIDE = 1
-DROPOUT = 0.3
-STD = 0.001
-
 
 def get_filenames(folder):
+    """
+    Returns the filenames (without extension) of the files in the given folder, in a shuffled order.
+    :param folder: The folder to consider.
+    :return: A list of filenames.
+    """
     filenames = os.listdir(folder)
     for i in range(len(filenames)):
         filenames[i] = os.path.splitext(filenames[i])[0]
     random.shuffle(filenames)
     return filenames
 
+
 def get_classes():
+    """
+    Returns a list containing the insect classes, with added spaces so they are the same length.
+    """
     with open(CLASSES_FILE, 'r') as f:
         classes = f.readlines()
-        classes = [x[3:].strip() for x in classes]
-        max_len = max(map(len, classes))
-        classes = [x.ljust(max_len) for x in classes]
+    classes = [x[3:].strip() for x in classes]
+    max_len = max(map(len, classes))
+    classes = [x.ljust(max_len) for x in classes]
     return classes
 
 
@@ -62,7 +83,14 @@ valid_names = get_filenames(f'{VALID_FOLDER}/{DATA_SUBFOLDER}')
 
 
 class InsectDataset(Dataset):
+    """
+    Represents a dataset of insects.
+    """
     def __init__(self, train):
+        """
+        Loads the images and targets and prepares them for training.
+        :param train: True if should use the training dataset; False for validation.
+        """
         if train:
             names = train_names
             working_folder = TRAIN_FOLDER
@@ -92,7 +120,15 @@ class InsectDataset(Dataset):
 
 
 class ConvolutionNeuralNetwork(nn.Module):
+    """
+    Represents a CNN.
+    """
     def __init__(self, channels=CONV_DEFAULT_CHANNELS, dropout=None):
+        """
+        Prepares the CNN according to the parameters given and the global constants.
+        :param channels: A tuple containing the channels in each convolutional layer.
+        :param dropout: The dropout probability, None for no dropout.
+        """
         super(ConvolutionNeuralNetwork, self).__init__()
         self.flatten = nn.Flatten(start_dim=1)
         prev_channels = INPUT_SHAPE[0]
@@ -245,10 +281,6 @@ def plot_model_results(train_loader, test_loader, model, optimizer, loss_fn, epo
             print(
                 f'Epoch {t} results: Train Accuracy = {train_accuracy}, Train Loss = {train_loss}, Test Accuracy = {test_accuracy}, Test Loss = {test_loss}')
 
-        # if train_loss < REQUIRED_TRAIN_LOSS:
-        #     print(f'Reached destination loss! Stopping Early (after epoch #{t}).')
-        #     epochs = t + 1
-        #     break
 
     # Remove Epoch 0 Results
     del epoch_train_accuracies[0]
@@ -297,7 +329,13 @@ def plot_model_results(train_loader, test_loader, model, optimizer, loss_fn, epo
     return epoch_test_accuracies[-1], epoch_test_losses[-1]
 
 
-def get_confusion_matrix(data_loader, model, loss_fn, device):
+def get_confusion_matrix(data_loader, model, device):
+    """
+    Computes the confusion matrix of the given trained model on the given dataset.
+    :param data_loader: A DataLoader containing the dataset.
+    :param model: The trained model.
+    :return: A np matrix where [i,j] index is the number of times the ground truth was 'i' and prediction was 'j'.
+    """
     ans = torch.zeros((OUTPUT_SIZE, OUTPUT_SIZE))
     with torch.no_grad():
         model.eval()
@@ -319,6 +357,10 @@ def get_confusion_matrix(data_loader, model, loss_fn, device):
 
 
 def cnn():
+    """
+    Performs the training, and saves the model.
+    :return: None
+    """
     global train_samples, train_labels, test_samples, test_labels
 
     epochs = EPOCHS
@@ -338,41 +380,31 @@ def cnn():
     # Initialize the loss function
     loss_fn = nn.CrossEntropyLoss()
 
-    # best_parameters = (0.0005, 0.1, 0.001)
-    # learning_rate, momentum, std = best_parameters
     std = STD
 
     # Create the model:
-    # model = create_model(std, device)
-
-    #################### Xavier: ######################
     model = create_model(std, device, xavier=True, dropout=DROPOUT)
-    ######################### END #####################
 
     print(model)
-    # return
 
     # Create the optimizer:
-    # optimizer = create_optimizer(model, learning_rate, momentum)
-
-    #################### Adam: ######################
     optimizer = create_optimizer(model, adam=True)
-    #################### END ########################
 
     # Run the model:
     plot_model_results(train_loader, test_loader, model, optimizer, loss_fn, epochs, device,
                        plot_accuracy_and_loss_on_same_figure=False)
 
     # Print the confusion matrix:
-    confusion_matrix = get_confusion_matrix(test_loader, model, loss_fn, device)
+    confusion_matrix = get_confusion_matrix(test_loader, model, device)
     with open(CLASSES_FILE, 'r') as f:
         classes = f.readlines()
         classes = [x[3:].strip() for x in classes]
         max_len = max(map(len, classes))
         classes = [x.ljust(max_len) for x in classes]
-    print(' ' * (3 + max_len) + '\t'*2 + ('\t'*2).join([f'y={c}'.ljust(2 + max_len) for c in classes]))
+    print(' ' * (3 + max_len) + '\t' * 2 + ('\t' * 2).join([f'y={c}'.ljust(2 + max_len) for c in classes]))
     for i in range(OUTPUT_SIZE):
-        print(f'pr={classes[i]}'.ljust(3 + max_len) + '\t'*2 + ('\t'*2).join([f'{confusion_matrix[j][i]}'.ljust(2 + max_len) for j in range(OUTPUT_SIZE)]))
+        print(f'pr={classes[i]}'.ljust(3 + max_len) + '\t' * 2 + ('\t' * 2).join(
+            [f'{confusion_matrix[j][i]}'.ljust(2 + max_len) for j in range(OUTPUT_SIZE)]))
 
     # Save the model:
     torch.save(model.state_dict(), OUTPUT_MODEL)
@@ -381,6 +413,10 @@ def cnn():
 
 
 def create_datasets():
+    """
+    Initializes the training and validation datasets.
+    :return: None
+    """
     global train_samples, train_labels, test_samples, test_labels
     train_dataset = InsectDataset(True)
     test_dataset = InsectDataset(False)
