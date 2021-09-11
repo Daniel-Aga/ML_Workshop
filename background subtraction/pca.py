@@ -2,14 +2,23 @@ import numpy as np
 import os
 from PIL import Image, ImageDraw
 import cv2 as cv
+from pathlib import Path
+
+ONLY_ANALYZE = True
 
 UNLABELED_FOLDER = 'unlabeled_hanadiv'
-OUTPUT_FOLDER = 'outs_hanadiv'
-GRAYCSCALE_OUT = 'outs_hanadiv_gray'
-THRESHOLD_OUT = 'outs_hanadiv_thresh'
-CROPPED_OUT = 'outs_hanadiv_cropped'
+OUTPUT_FOLDER = 'outs_hanadiv_10'
+GRAYCSCALE_OUT = 'outs_hanadiv_gray_10'
+THRESHOLD_OUT = 'outs_hanadiv_thresh_10_115'
+CROPPED_OUT = 'outs_hanadiv_cropped_10_115'
+# UNLABELED_FOLDER = 'unlabeled_mishmar'
+# OUTPUT_FOLDER = 'outs_mishmar_10'
+# GRAYCSCALE_OUT = 'outs_mishmar_gray_10'
+# THRESHOLD_OUT = 'outs_mishmar_thresh_10_110'
+# CROPPED_OUT = 'outs_mishmar_cropped_10_110'
 IMAGES_EXT = 'JPG'
 TRIM_BOTTOM = 230
+# TRIM_BOTTOM = 160
 TRIM_LEFT = 0
 TRIM_RIGHT = 0
 TRIM_TOP = 0
@@ -23,27 +32,33 @@ Vt_NP_FILE = 'tmp/Vt.npy'
 U_NP_FILE = 'tmp/U.npy'
 P_NP_FILE = 'tmp/P.npy'
 Q_NP_FILE = 'tmp/Q.npy'
-APPLY_TO_RESULT = lambda x: (x + 200) * 255 / 300
-# APPLY_TO_RESULT = lambda x: (x + 150) * 255 / 200
+# APPLY_TO_RESULT = lambda x: (x + 200) * 255 / 300
+APPLY_TO_RESULT = lambda x: (x + 150) * 255 / 200
 SQUARE_SIZE = (16, 16)
 LPF_FILE = 'lpf.csv'
 DO_LOW_PASS = False
-THRESHOLD = 130
+THRESHOLD = 115
+# THRESHOLD = 110
 NUM_PIXELS_SMALLER_THAN_THRESH = 3
+# NUM_PIXELS_TO_CHECK = 20
 NUM_PIXELS_TO_CHECK = 10
 
 lpf = None
+
 
 def init():
     global lpf
     lpf = np.genfromtxt(LPF_FILE, delimiter=',')
     pass
 
+
 def PIL_to_cv2(img):
     return cv.cvtColor(np.array(img), cv.COLOR_RGB2BGR)
 
+
 def cv2_to_PIL(img):
     return Image.fromarray(cv.cvtColor(img, cv.COLOR_BGR2RGB))
+
 
 def shrink(img):
     w, h = img.size
@@ -52,9 +67,11 @@ def shrink(img):
     new_img = img.resize((new_w, new_h))
     return new_img
 
+
 def crop(img):
     w, h = img.size
     return img.crop((TRIM_LEFT, TRIM_TOP, w - TRIM_RIGHT, h - TRIM_BOTTOM))
+
 
 def low_pass(img):
     if not DO_LOW_PASS:
@@ -74,11 +91,13 @@ def low_pass(img):
 
     return img
 
+
 def preprocess(img):
     img = crop(img)
     img = low_pass(img)
     img = shrink(img)
     return img
+
 
 def loadX(files, save=True, force=False):
     if not force and os.path.isfile(X_NP_FILE):
@@ -150,13 +169,17 @@ def is_insect_in_square(arr, arr_gray, sqr):
     sub_image = arr_gray[sqr[0]:sqr[0] + SQUARE_SIZE[0], sqr[1]:sqr[1] + SQUARE_SIZE[1]]
     return (sub_image < THRESHOLD).sum() >= NUM_PIXELS_SMALLER_THAN_THRESH
 
+
 def in_sqr(sqr, pt):
     """ Square is of size SQUARE_SIZE. """
     return sqr[0] <= pt[0] <= sqr[0] + SQUARE_SIZE[0] and sqr[1] <= pt[1] <= sqr[1] + SQUARE_SIZE[1]
 
+
 def intersect_squares(sqr1, sqr2):
     """ Squares are of size SQUARE_SIZE. """
-    return in_sqr(sqr2, (sqr1[0], sqr1[1])) or in_sqr(sqr2, (sqr1[0] + SQUARE_SIZE[0], sqr1[1])) or in_sqr(sqr2, (sqr1[0], sqr1[1] + SQUARE_SIZE[1])) or in_sqr(sqr2, (sqr1[0] + SQUARE_SIZE[0], sqr1[1] + SQUARE_SIZE[1]))
+    return in_sqr(sqr2, (sqr1[0], sqr1[1])) or in_sqr(sqr2, (sqr1[0] + SQUARE_SIZE[0], sqr1[1])) or in_sqr(sqr2, (
+    sqr1[0], sqr1[1] + SQUARE_SIZE[1])) or in_sqr(sqr2, (sqr1[0] + SQUARE_SIZE[0], sqr1[1] + SQUARE_SIZE[1]))
+
 
 def insect_square(arr, arr_gray):
     pixels_to_check = np.unravel_index(np.argsort(arr_gray, axis=None)[:NUM_PIXELS_TO_CHECK], arr_gray.shape)
@@ -184,7 +207,6 @@ maxes = []
 
 
 def output(P, Q, files):
-
     c = 0
     for fname in files:
         print(f'{c + 1}. {fname}')
@@ -251,15 +273,19 @@ def analyze_insects(files):
 
     return total_insects
 
+
 def clean(force=False, folders=None):
     if folders is None:
-        folders=[OUTPUT_FOLDER, GRAYCSCALE_OUT, THRESHOLD_OUT, CROPPED_OUT]
+        folders = [OUTPUT_FOLDER, GRAYCSCALE_OUT, THRESHOLD_OUT, CROPPED_OUT]
     if not force:
         confirm = input('Clean (Y/N)? ')
         if confirm.lower() != 'y':
             print('Canceled!')
             return False
     for fld in folders:
+
+        Path(fld).mkdir(parents=True, exist_ok=True)
+
         for filename in os.listdir(fld):
             file_path = os.path.join(fld, filename)
             try:
@@ -277,7 +303,7 @@ def main():
     all_files = os.listdir(UNLABELED_FOLDER)
     total_insects = 0
     for i in range(0, min(len(all_files), NUM_IMAGES_TO_PROCESS), NUM_IMAGES_FOR_SVD):
-        files = all_files[i:i+NUM_IMAGES_FOR_SVD]
+        files = all_files[i:i + NUM_IMAGES_FOR_SVD]
         print(f'Loading images...')
         # X = loadX(FOLDER, NUM_IMAGES_TO_PROCESS, save=False)
         X = loadX(files, save=False)
@@ -294,18 +320,21 @@ def main():
     print(f'Done!')
     print(f'Found a total of {total_insects} insects.')
 
+
 def only_analyze():
     init()
     clean(True, [THRESHOLD_OUT, CROPPED_OUT])
     all_files = os.listdir(UNLABELED_FOLDER)
     total_insects = 0
     for i in range(0, min(len(all_files), NUM_IMAGES_TO_PROCESS), NUM_IMAGES_FOR_SVD):
-        files = all_files[i:i+NUM_IMAGES_FOR_SVD]
+        files = all_files[i:i + NUM_IMAGES_FOR_SVD]
         total_insects += analyze_insects(files)
     print(f'Done!')
     print(f'Found a total of {total_insects} insects.')
 
 
 if __name__ == '__main__':
-    only_analyze()
-    # main()
+    if ONLY_ANALYZE:
+        only_analyze()
+    else:
+        main()
