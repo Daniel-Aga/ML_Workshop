@@ -17,6 +17,8 @@ BCKGRND_CLASS = 5
 NUM_EMPTY_TRAIN = 200
 NUM_EMPTY_VALID = 40
 
+ONLY_TEST = False
+
 
 def get_filenames(folder):
     filenames = os.listdir(folder)
@@ -86,6 +88,20 @@ def create_database():
                 hs.append(int(hins * h))
 
 
+def test_images():
+    ans = {}
+    for working_folder in [TRAIN_FOLDER, VALID_FOLDER]:
+        img_folder = f'{working_folder}/{IMAGES_SUBFOLDER}'
+        names = get_filenames(img_folder)
+        for name in names:
+            txt_name = f'{working_folder}/{TXT_SUBFOLDER}/{name}.{TXT_EXT}'
+            with open(txt_name, 'r') as f:
+                insects = f.readlines()
+            num_insects = len(insects)
+            ans[num_insects] = ans.setdefault(num_insects, 0) + 1
+    print(ans)
+
+
 def clean(force=False):
     if not force:
         confirm = input('Clean (Y/N)? ')
@@ -110,6 +126,10 @@ def clean(force=False):
 
 
 def main():
+    if ONLY_TEST:
+        test_images()
+        return
+
     clean(True)
     print('Creating cropped images...')
     create_database()
